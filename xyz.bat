@@ -7,7 +7,7 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 
 Write-Host "[+] Admin privileges confirmed." -ForegroundColor Green
 
-# 2. Install OpenSSH Server if not already installed
+# 2. Install OpenSSH Server if not installed
 $sshServer = Get-WindowsCapability -Online | Where-Object Name -like 'OpenSSH.Server*'
 if ($sshServer.State -ne 'Installed') {
     Write-Host "[*] Installing OpenSSH Server..." -ForegroundColor Yellow
@@ -16,36 +16,41 @@ if ($sshServer.State -ne 'Installed') {
     Write-Host "[+] OpenSSH Server is already installed." -ForegroundColor Green
 }
 
-# 3. Start and Enable SSH Service
-Write-Host "[*] Configuring SSH Service..." -ForegroundColor Yellow
+# 3. Start SSH Service
 Start-Service sshd
 Set-Service -Name sshd -StartupType 'Automatic'
 
-# 4. Ensure Firewall Allows SSH (Port 22)
-$fwRule = Get-NetFirewallRule -Name "OpenSSH-Server-In-TCP" -ErrorAction SilentlyContinue
-if (-not $fwRule) {
-    Write-Host "[*] Creating Firewall Rule for SSH..." -ForegroundColor Yellow
-    New-NetFirewallRule -Name "OpenSSH-Server-In-TCP" -DisplayName "OpenSSH Server (sshd)" -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22
+# 4. Download Tor for Windows (Standalone Portable) agar nahi hai toh
+$torDir = "$PSScriptRoot\Tor"
+$torExe = "$torDir\tor.exe"
+if (-not (Test-Path $torExe)) {
+    Write-Host "[*] Downloading Tor binaries for Windows..." -ForegroundColor Yellow
+    $torZip = "$PSScriptRoot\tor.zip"
+    # Official Tor Expert Bundle URL for Windows
+    Invoke-WebRequest -Uri "https://archive.torproject.org/torproject-package-archive/torbrowser/13.0.1/tor-win32-0.4.8.9.zip" -OutFile $torZip
+    Write-Host "[*] Extracting Tor..." -ForegroundColor Yellow
+    Expand-Archive -Path $torZip -DestinationPath$PSScriptRoot -Force
+    Remove-Item $torZip
 } else {
-    Write-Host "[+] Firewall rule for SSH already exists." -ForegroundColor Green
+    Write-Host "[+] Tor binary found locally." -ForegroundColor Green
 }
 
-# 5. Download Ngrok if not present in the current folder
-$ngrokPath = "$PSScriptRoot\ngrok.exe"
-if (-not (Test-Path $ngrokPath)) {
-    Write-Host "[*] Downloading Ngrok..." -ForegroundColor Yellow
-    $zipPath = "$PSScriptRoot\ngrok.zip"
-    Invoke-WebRequest -Uri "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip" -OutFile $zipPath
-    Write-Host "[*] Extracting Ngrok..." -ForegroundColor Yellow
-    Expand-Archive -Path $zipPath -DestinationPath $PSScriptRoot -Force
-    Remove-Item $zipPath
-} else {
-    Write-Host "[+] Ngrok found locally." -ForegroundColor Green
-}
+# 5. Create a temporary Tor configuration file for SOCKS proxy
+$torrcPath = "$torDir\torrc"
+"SocksPort 9050" | Out-File -FilePath $torrcPath -Encoding ascii
 
-# 6. Automatically start Ngrok TCP Tunnel for Port 22
-Write-Host "[+] Starting Ngrok Tunnel automatically..." -ForegroundColor Green
-Write-Host "[*] Copy the forwarding address below and use it on Kali Linux!" -ForegroundColor Cyan
-Write-Host "--------------------------------------------------------" -ForegroundColor DarkGray
+# 6. Start Tor Background Process
+Write-Host "[*] Starting local Tor background proxy..." -ForegroundColor Yellow
+Start-Process -FilePath "$torExe" -ArgumentList "-f `"$torrcPath`"" -WindowStyle Hidden
 
-Start-Process -FilePath "$ngrokPath" -ArgumentList "tcp 22" -NoNewWindow
+# Wait a few seconds for Tor to establish connection
+Start-Sleep -Seconds 10
+
+# 7. Setup Reverse SSH Tunnel to Kali .onion address
+# Yahan apna Kali ka user aur .onion address dalein
+$KaliUser = "kali"
+$KaliOnion = "YOUR_KALI_ONION_ADDRESS.onion"
+
+Write-Host "[+] Connecting back to Kali Linux via Tor..." -ForegroundColor Green
+# Plink ya native ssh command ka use karke reverse tunnel establish karein
+# Yeh Windows ko Kali ke sath securely jod dega
